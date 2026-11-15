@@ -139,7 +139,19 @@ def test_stop_when_not_running(
     assert "not running" in capsys.readouterr().out
 
 
-def test_stop_refuses_foreign_listener(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stop_warns_and_kills_foreign_listener(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    killed: list[int] = []
+    monkeypatch.setattr(server, "port_in_use", lambda port: not killed)
+    monkeypatch.setattr(server, "listening_pid", lambda port: 555)
+    monkeypatch.setattr(server, "kill_tree", lambda pid: killed.append(pid))
+    assert server.stop_main([]) == 0
+    assert killed == [555]
+    assert "Warning" in capsys.readouterr().err
+
+
+def test_stop_reports_foreign_listener_it_cannot_identify(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(server, "port_in_use", lambda port: True)
     killed: list[int] = []
     monkeypatch.setattr(server, "kill_tree", lambda pid: killed.append(pid))

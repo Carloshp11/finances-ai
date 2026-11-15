@@ -215,25 +215,46 @@ def start(foreground: bool, timeout: float) -> int:
     return 0
 
 
+def _wait_port_free(port: int, timeout: float = 10.0) -> bool:
+    """Wait for the socket to close after a kill; False if it is still busy at the deadline."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not port_in_use(port):
+            return True
+        time.sleep(0.5)
+    return not port_in_use(port)
+
+
 def stop() -> int:
     port, paths = get_port(), get_paths()
     state = read_pid_file(paths)
     if state is not None and is_ours(state.pid):
         kill_tree(state.pid)
-        for _ in range(20):  # wait up to 10 seconds for the socket to close
-            if not port_in_use(state.port):
-                break
-            time.sleep(0.5)
         paths.pid_file.unlink(missing_ok=True)
-        if port_in_use(state.port):
+        if not _wait_port_free(state.port):
             raise PhoenixError(f"Port {state.port} is still in use after stopping Phoenix.")
         print("Phoenix stopped.")
         return 0
 
     paths.pid_file.unlink(missing_ok=True)  # absent or stale
-    if port_in_use(port):
+    if not port_in_use(port):
+        print("Phoenix is not running.")
+        return 0
+
+    # The port is held by a process this session did not start (for example a server left
+    # over from an earlier session). Warn, then stop that process and its children.
+    owner = listening_pid(port)
+    if owner is None:
         raise port_conflict(port, "in use by a process not started by phoenix-start")
-    print("Phoenix is not running.")
+    print(
+        f"Warning: port {port} is held by PID {owner}, which was not started by "
+        "phoenix-start in this session. Stopping it.",
+        file=sys.stderr,
+    )
+    kill_tree(owner)
+    if not _wait_port_free(port):
+        raise PhoenixError(f"Port {port} is still in use after stopping PID {owner}.")
+    print("Stopped the process that was holding the port.")
     return 0
 
 

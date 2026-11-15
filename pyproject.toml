@@ -12,6 +12,10 @@ dependencies = [
     "python-dotenv>=1.2.4",
 ]
 
+[project.scripts]
+phoenix-start = "local_ai.observability.server:start_main"
+phoenix-stop = "local_ai.observability.server:stop_main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"

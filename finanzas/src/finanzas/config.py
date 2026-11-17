@@ -29,7 +29,6 @@ class RutasSettings(BaseModel):
         return self.outputs / "resumenes"
 
 
-# TODO(P3): the local model names are set in settings.yaml (currently PENDIENTE).
 class FormatoSettings(BaseModel):
     modelo: str
     filas_muestra: int

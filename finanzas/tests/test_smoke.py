@@ -26,6 +26,8 @@ def bd_temporal(tmp_path, monkeypatch):
     """Point the database at a temporary file for every test."""
     ruta = tmp_path / "test.db"
     monkeypatch.setenv("FINANZAS_RUTAS__BASE_DATOS", str(ruta))
+    # Tests must not send spans to a Phoenix collector.
+    monkeypatch.setenv("PHOENIX_TELEMETRY_ENABLED", "false")
     return ruta
 
 

@@ -1,55 +1,75 @@
-"""Run configuration and optional Langfuse tracing.
+"""Run configuration and tracing to a local Arize Phoenix collector.
 
-Traces are sent ONLY when both LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY are set in the
-environment. Without them nothing leaves the machine. Credentials are never read from
-settings.yaml. Langfuse must also be pointed at a local or self-hosted instance through
-LANGFUSE_HOST or LANGFUSE_BASE_URL, in line with the project rule that data stays local.
+Traces go only to the collector set in PHOENIX_COLLECTOR_ENDPOINT (default
+http://localhost:6006/v1/traces). Phoenix runs on this machine, in line with the project rule
+that data never leaves it. If Phoenix is not running or tracing is disabled, the run continues
+without traces and only a warning is printed.
+
+Environment variables (same names as the local_ai project, so one .env can serve both):
+    PHOENIX_COLLECTOR_ENDPOINT   default http://localhost:6006/v1/traces
+    PHOENIX_PROJECT_NAME         default "finanzas"
+    PHOENIX_TELEMETRY_ENABLED    default "true"; "false" disables tracing
 """
 
 import os
 import sys
+import threading
 from typing import Any
 
-_HANDLER_ACTIVO = False
+_lock = threading.Lock()
+_provider: Any | None = None  # tracer provider, once registered
+_intentado = False
 
 
-def _langfuse_configurado() -> bool:
-    return bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+def _telemetria_activa() -> bool:
+    valor = os.getenv("PHOENIX_TELEMETRY_ENABLED", "true").strip().lower()
+    return valor in {"true", "1", "yes", "on"}
+
+
+def _registrar_phoenix() -> None:
+    """Register the tracer provider and instrument LangChain. Runs once; never raises."""
+    global _provider, _intentado
+    with _lock:
+        if _intentado:
+            return
+        _intentado = True
+        if not _telemetria_activa():
+            return
+        try:
+            from openinference.instrumentation.langchain import LangChainInstrumentor
+            from phoenix.otel import register
+
+            _provider = register(
+                endpoint=os.getenv("PHOENIX_COLLECTOR_ENDPOINT", "http://localhost:6006/v1/traces"),
+                project_name=os.getenv("PHOENIX_PROJECT_NAME", "finanzas"),
+                verbose=False,
+            )
+            LangChainInstrumentor().instrument(tracer_provider=_provider)
+        except Exception as error:  # noqa: BLE001 - tracing must never break a run
+            _provider = None
+            print(f"Aviso: no se pudo activar Phoenix ({error}); se continúa sin trazas.",
+                  file=sys.stderr)
 
 
 def construir_config(thread_id: str | None = None, recursion_limit: int = 1000) -> dict[str, Any]:
     """Return the RunnableConfig to pass to invoke().
 
-    - callbacks: [Langfuse handler] when Langfuse is configured; [] otherwise.
     - recursion_limit: high, because the enrichment loop takes many turns.
-    - configurable.thread_id when given (the consultor needs it).
+    - configurable.thread_id when given (the consultant needs it).
+    Tracing is attached globally through OpenInference, so no callback is needed here.
     """
-    global _HANDLER_ACTIVO
-    callbacks: list[Any] = []
-    if _langfuse_configurado():
-        try:
-            from langfuse.langchain import CallbackHandler
-
-            callbacks.append(CallbackHandler())
-            _HANDLER_ACTIVO = True
-        except Exception as error:  # noqa: BLE001 - tracing must never break a run
-            print(f"Aviso: no se pudo activar Langfuse ({error}); se continúa sin trazas.",
-                  file=sys.stderr)
-
-    config: dict[str, Any] = {"callbacks": callbacks, "recursion_limit": recursion_limit}
+    _registrar_phoenix()
+    config: dict[str, Any] = {"recursion_limit": recursion_limit}
     if thread_id is not None:
         config["configurable"] = {"thread_id": thread_id}
     return config
 
 
 def vaciar_trazas() -> None:
-    """Send pending Langfuse traces before the process exits. No-op without a handler."""
-    global _HANDLER_ACTIVO
-    if not _HANDLER_ACTIVO:
+    """Flush pending spans before the process exits. No-op when Phoenix is not active."""
+    if _provider is None:
         return
     try:
-        from langfuse import get_client
-
-        get_client().flush()
+        _provider.force_flush()
     except Exception as error:  # noqa: BLE001
-        print(f"Aviso: no se pudieron enviar las trazas de Langfuse ({error}).", file=sys.stderr)
+        print(f"Aviso: no se pudieron enviar las trazas a Phoenix ({error}).", file=sys.stderr)

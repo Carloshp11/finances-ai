@@ -4,22 +4,22 @@ rutas:
   base_datos: data/finanzas.db
 
 formato:
-  modelo: PENDIENTE            # TODO(P3): local model not decided yet
+  modelo: qwen3:14b            # structured column mapping: small task
   filas_muestra: 5
-  requiere_confirmacion: true  # TODO(P4): confirm new formats by hand
+  requiere_confirmacion: true  # P4 decided: new statement formats need user confirmation
 
 enriquecimiento:
-  modelo: PENDIENTE            # TODO(P3)
+  modelo: qwen3:14b            # category and tag generation: small task
   tamano_lote: 25
   max_reintentos: 2
   formato_entrada: jsonl
   version_prompt: v1
 
 analisis:
-  modelo: PENDIENTE            # TODO(P3)
+  modelo: qwen3:27b           # summaries from metrics: needs the larger model
 
 consultor:
-  modelo: PENDIENTE            # TODO(P3)
+  modelo: qwen3:27b           # tool-using conversational agent: needs the larger model
 
 transferencias:
   ventana_dias_emparejamiento: 2   # fallback when the counterparty IBAN is missing (P2)
@@ -33,11 +33,11 @@ cuentas:
     usuario: usuario2
     alias: cuenta principal
 
-# TODO(P2): only needed if the statement does not carry the own IBAN.
-# Glob pattern relative to the user's folder -> IBAN.
+# P2 decided: statements do not carry the account IBAN, so each file is mapped to an account
+# here. Glob pattern relative to the user's folder -> IBAN. Fill in the real patterns and IBANs.
 cuentas_por_fichero: []
 #  - usuario: carlos
-#    patron: "banco_x_*.csv"
+#    patron: "<patron real del banco>*.csv"   # TODO: fill in with the real file pattern
 #    iban: ES0000000000000000000000
 
 # Closed list of categories. Synced into the `categorias` table on start-up.

@@ -42,11 +42,12 @@ uv run finanzas etiquetas [--min N]
 - `etiquetas`: lists the free-text labels proposed by the LLM. `*` marks labels that do not match
   any category in the closed list.
 
-## Tracing (Langfuse)
+## Tracing (Phoenix)
 
-Traces are sent only when `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are set. Point
-`LANGFUSE_HOST` (or `LANGFUSE_BASE_URL`) at a local or self-hosted instance, so that data stays on
-this machine. Without these variables nothing leaves the machine.
+Traces go to the local Arize Phoenix collector (`http://localhost:6006`), the same instance used
+by `local_ai`. Start it from the repository root with `uv run phoenix-start`. Nothing is sent
+elsewhere. Set `PHOENIX_TELEMETRY_ENABLED=false` to turn tracing off. Traces appear in the
+`finanzas` project (`PHOENIX_PROJECT_NAME`).
 
 ## Tests
 
@@ -62,6 +63,6 @@ The tests use a temporary database and never touch `data/finanzas.db`.
 | ID | Point | Current handling |
 |---|---|---|
 | P1 | Origin of the statements: whether the bank's web app exports CSV/XLSX, or another route is needed (for example a PSD2 aggregator). | `leer_fichero` is isolated (`TODO(P1)`). |
-| P2 | Whether the CSV contains the account IBAN and the counterparty IBAN. | Fallback mapping in `settings.yaml` (`cuentas_por_fichero`) and matching by opposite amount within ±2 days (`TODO(P2)` in `consolidar`). |
-| P3 | Concrete local models. | `modelo: PENDIENTE` in `settings.yaml` (`TODO(P3)`). |
-| P4 | Whether new formats must be confirmed by hand. | `formato.requiere_confirmacion: true` by default (`TODO(P4)`). The confirmation command is out of scope for now. |
+| P2 | Whether the CSV contains the account IBAN and the counterparty IBAN. | **Decided:** statements do not carry the account IBAN, so files are mapped to accounts with `cuentas_por_fichero`. Counterparty matching is still open (`TODO(P2)` in `consolidar`). |
+| P3 | Concrete local models. | **Decided:** `qwen3:14b` for format mapping and enrichment, `qwen3:27b` for analysis and the consultant. |
+| P4 | Whether new formats must be confirmed by hand. | **Decided:** yes. `formato.requiere_confirmacion: true`. The confirmation command is still to be built. |

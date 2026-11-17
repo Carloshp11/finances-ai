@@ -13,8 +13,8 @@ A modular system of standards and review for LangGraph components (nodes, graphs
 | Skill | `.claude/skills/langgraph-design-doc/SKILL.md` | How to write design.md | User and any agent |
 | Skill | `.claude/skills/langgraph-node-standards/SKILL.md` | Node standards | Manual: `/langgraph-node-standards` |
 | Skill | `.claude/skills/langgraph-graph-standards/SKILL.md` | Graph and subgraph standards | Manual: `/langgraph-graph-standards` |
-| Subagent | `.claude/agents/langgraph-standards-reviewer.md` | Read-only, scope-aware reviewer | Post Architect or any agent |
-| Subagent | Post Architect | Designs and delegates review | Existing |
+| Subagent | `.claude/agents/langgraph-standards-reviewer.md` | Read-only, scope-aware reviewer | code-architect or any agent |
+| Subagent | code-architect | Designs and delegates review | Existing |
 
 A convention is a reusable text with the same role as a skill, but it is never executed on its own: skills and the reviewer point to it.
 
@@ -23,8 +23,8 @@ A convention is a reusable text with the same role as a skill, but it is never e
 ```mermaid
 flowchart TD
     U["User"] --> M["Main agent"]
-    M --> PA["Post Architect"]
-    PA --> S{"Scope"}
+    M --> CA["code-architect"]
+    CA --> S{"Scope"}
     S -->|"scope=node"| RN["Reviewer: node standard"]
     S -->|"scope=graph"| RG["Reviewer: graph standard"]
     S -->|"scope=mixed"| RG
@@ -33,7 +33,7 @@ flowchart TD
     F -->|"no"| D{"All approved?"}
     RN --> D
     PAR --> D
-    D -->|"no, cycles < 3"| PA
+    D -->|"no, cycles < 3"| CA
     D -->|"no, 3 cycles"| H["Report pending points to user"]
     D -->|"yes"| M
 ```

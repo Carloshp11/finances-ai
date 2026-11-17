@@ -1,9 +1,9 @@
-"""Carga de la configuración desde settings.yaml con sobreescritura por variables de entorno.
+"""Configuration loading from settings.yaml, with overrides from environment variables.
 
-Opción elegida: se reordenan las fuentes de pydantic-settings para que las variables de
-entorno (prefijo FINANZAS_, anidado con "__") ganen al YAML. El YAML se pasa como
-argumentos iniciales (init_settings), que por defecto tienen prioridad máxima; por eso
-se devuelve env_settings antes que init_settings.
+Chosen approach: the pydantic-settings sources are reordered so that environment variables
+(prefix FINANZAS_, nested with "__") win over the YAML. The YAML is passed as initial
+arguments (init_settings), which by default have the highest priority; that is why
+env_settings is returned before init_settings.
 """
 
 from pathlib import Path
@@ -25,10 +25,11 @@ class RutasSettings(BaseModel):
 
     @property
     def ruta_resumenes(self) -> Path:
-        """Carpeta donde se publican los resúmenes en markdown."""
+        """Folder where the markdown summaries are published."""
         return self.outputs / "resumenes"
 
 
+# TODO(P3): the local model names are set in settings.yaml (currently PENDIENTE).
 class FormatoSettings(BaseModel):
     modelo: str
     filas_muestra: int
@@ -94,7 +95,7 @@ class Settings(BaseSettings):
         dotenv_settings: PydanticBaseSettingsSource,
         file_secret_settings: PydanticBaseSettingsSource,
     ) -> tuple[PydanticBaseSettingsSource, ...]:
-        # Orden de prioridad (primero gana): entorno, luego YAML (init), luego el resto.
+        # Priority order (first wins): environment, then YAML (init), then the rest.
         return (env_settings, init_settings, dotenv_settings, file_secret_settings)
 
 
@@ -102,12 +103,12 @@ RAIZ_PROYECTO = Path(__file__).resolve().parents[2]
 
 
 def cargar_settings(ruta: str | Path | None = None) -> Settings:
-    """Lee el YAML con yaml.safe_load y construye Settings.
+    """Read the YAML with yaml.safe_load and build Settings.
 
-    Por defecto usa <raiz del proyecto>/settings.yaml, para que funcione desde cualquier
-    directorio. Las rutas relativas de `rutas` se resuelven contra la raíz del proyecto.
-    Las variables de entorno FINANZAS_* tienen prioridad sobre el YAML
-    (ver settings_customise_sources).
+    By default it uses <project root>/settings.yaml, so it works from any directory.
+    Relative paths in `rutas` are resolved against the project root.
+    FINANZAS_* environment variables take priority over the YAML
+    (see settings_customise_sources).
     """
     ruta_yaml = Path(ruta) if ruta is not None else RAIZ_PROYECTO / "settings.yaml"
     with open(ruta_yaml, encoding="utf-8") as fichero:

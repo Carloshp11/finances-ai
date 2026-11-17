@@ -1,0 +1,12 @@
+# Datos financieros reales: NUNCA al repositorio
+data/
+*.db
+*.db-wal
+*.db-shm
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/

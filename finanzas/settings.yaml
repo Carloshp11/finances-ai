@@ -1,0 +1,59 @@
+rutas:
+  inputs: data/inputs
+  outputs: data/outputs
+  base_datos: data/finanzas.db
+
+formato:
+  modelo: PENDIENTE            # TODO(P3): local model not decided yet
+  filas_muestra: 5
+  requiere_confirmacion: true  # TODO(P4): confirm new formats by hand
+
+enriquecimiento:
+  modelo: PENDIENTE            # TODO(P3)
+  tamano_lote: 25
+  max_reintentos: 2
+  formato_entrada: jsonl
+  version_prompt: v1
+
+analisis:
+  modelo: PENDIENTE            # TODO(P3)
+
+consultor:
+  modelo: PENDIENTE            # TODO(P3)
+
+transferencias:
+  ventana_dias_emparejamiento: 2   # fallback when the counterparty IBAN is missing (P2)
+
+# Household accounts. Synced into the `cuentas` table on start-up.
+cuentas:
+  - iban: ES0000000000000000000000
+    usuario: carlos
+    alias: cuenta principal
+  - iban: ES1111111111111111111111
+    usuario: usuario2
+    alias: cuenta principal
+
+# TODO(P2): only needed if the statement does not carry the own IBAN.
+# Glob pattern relative to the user's folder -> IBAN.
+cuentas_por_fichero: []
+#  - usuario: carlos
+#    patron: "banco_x_*.csv"
+#    iban: ES0000000000000000000000
+
+# Closed list of categories. Synced into the `categorias` table on start-up.
+categorias:
+  - {nombre: vivienda,        descripcion: "Alquiler, hipoteca, comunidad, IBI, reformas"}
+  - {nombre: suministros,     descripcion: "Luz, agua, gas, internet, telefonía"}
+  - {nombre: supermercado,    descripcion: "Compra de alimentación y droguería"}
+  - {nombre: restauracion,    descripcion: "Restaurantes, bares, comida a domicilio"}
+  - {nombre: transporte,      descripcion: "Combustible, peajes, transporte público, parking, taller"}
+  - {nombre: salud,           descripcion: "Farmacia, consultas, seguros médicos"}
+  - {nombre: ocio,            descripcion: "Suscripciones, viajes, eventos, hobbies"}
+  - {nombre: compras,         descripcion: "Ropa, tecnología, hogar, otros comercios"}
+  - {nombre: seguros,         descripcion: "Seguros no médicos"}
+  - {nombre: impuestos,       descripcion: "Impuestos y tasas"}
+  - {nombre: ingresos,        descripcion: "Nómina y otros ingresos"}
+  - {nombre: ahorro_inversion,descripcion: "Aportaciones a ahorro, fondos, planes"}
+  - {nombre: transferencias,  descripcion: "Transferencias no clasificables en otra categoría"}
+  - {nombre: comisiones,      descripcion: "Comisiones e intereses bancarios"}
+  - {nombre: otros,           descripcion: "No encaja en ninguna anterior"}

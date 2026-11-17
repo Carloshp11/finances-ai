@@ -221,3 +221,4 @@ __marimo__/
 
 # JetBrains IDE settings (personal, not shared)
 .idea/
+/implementation_plans/

@@ -98,12 +98,23 @@ class Settings(BaseSettings):
         return (env_settings, init_settings, dotenv_settings, file_secret_settings)
 
 
-def cargar_settings(ruta: str | Path = "settings.yaml") -> Settings:
+RAIZ_PROYECTO = Path(__file__).resolve().parents[2]
+
+
+def cargar_settings(ruta: str | Path | None = None) -> Settings:
     """Lee el YAML con yaml.safe_load y construye Settings.
 
+    Por defecto usa <raiz del proyecto>/settings.yaml, para que funcione desde cualquier
+    directorio. Las rutas relativas de `rutas` se resuelven contra la raíz del proyecto.
     Las variables de entorno FINANZAS_* tienen prioridad sobre el YAML
     (ver settings_customise_sources).
     """
-    with open(ruta, encoding="utf-8") as fichero:
+    ruta_yaml = Path(ruta) if ruta is not None else RAIZ_PROYECTO / "settings.yaml"
+    with open(ruta_yaml, encoding="utf-8") as fichero:
         datos: dict[str, Any] = yaml.safe_load(fichero) or {}
-    return Settings(**datos)
+    settings = Settings(**datos)
+    for campo in ("inputs", "outputs", "base_datos"):
+        valor = getattr(settings.rutas, campo)
+        if not valor.is_absolute():
+            setattr(settings.rutas, campo, RAIZ_PROYECTO / valor)
+    return settings

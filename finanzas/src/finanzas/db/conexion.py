@@ -8,13 +8,9 @@ import sqlite3
 from pathlib import Path
 
 from finanzas.config import CategoriaConfig, CuentaConfig, Settings
+from finanzas.utilidades import normalizar_iban
 
 _ESQUEMA = Path(__file__).parent / "esquema.sql"
-
-
-def _normalizar_iban(iban: str) -> str:
-    # Temporary local copy; replaced by finanzas.utilidades.normalizar_iban in Phase 3.
-    return iban.replace(" ", "").upper()
 
 
 def obtener_conexion(ruta_bd: Path) -> sqlite3.Connection:
@@ -44,7 +40,7 @@ def sincronizar_cuentas(conn: sqlite3.Connection, cuentas: list[CuentaConfig]) -
     """
     ibans_config = set()
     for cuenta in cuentas:
-        iban = _normalizar_iban(cuenta.iban)
+        iban = normalizar_iban(cuenta.iban)
         ibans_config.add(iban)
         conn.execute(
             """
@@ -80,7 +76,10 @@ def sincronizar_categorias(conn: sqlite3.Connection, categorias: list[CategoriaC
 
 
 def inicializar_bd(settings: Settings) -> None:
-    """Open a connection, create the schema, sync accounts and categories, then close. Idempotent."""
+    """Open a connection, create the schema, sync accounts and categories, close it.
+
+    Idempotent: safe to call on every start-up.
+    """
     conn = obtener_conexion(settings.rutas.base_datos)
     try:
         with conn:

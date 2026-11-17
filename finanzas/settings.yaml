@@ -16,10 +16,10 @@ enriquecimiento:
   version_prompt: v1
 
 analisis:
-  modelo: qwen3:27b           # summaries from metrics: needs the larger model
+  modelo: qwen3:32b           # summaries from metrics: needs the larger model
 
 consultor:
-  modelo: qwen3:27b           # tool-using conversational agent: needs the larger model
+  modelo: qwen3:32b           # tool-using conversational agent: needs the larger model
 
 transferencias:
   ventana_dias_emparejamiento: 2   # fallback when the counterparty IBAN is missing (P2)

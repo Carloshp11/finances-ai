@@ -11,7 +11,7 @@
 > 4. **When you finish a task, update this file in the same session**: change its checkbox, fill `Verified:` with the command you ran and its result, add a row to the change log (section 8), and refresh the snapshot (section 2) if what is real or dummy changed. Update the "Last updated" line.
 > 5. Never mark a task `[x]` without running its `Verified:` command.
 >
-> **Last updated:** 2026-11-21 · branch `feat/langgraph-standards` · HEAD `c9ab117` (EXT-1 to EXT-3 and the private settings overlay are committed). This file is versioned; the rest of `implementation_plans/` is git-ignored (root `.gitignore` ignores the folder contents except this file), so the other plans exist only on the user's disk.
+> **Last updated:** 2026-11-21 · branch `feat/langgraph-standards` · HEAD `c9ab117` (EXT-1 to EXT-3 and the private settings overlay are committed; T0.3 is uncommitted). This file is versioned; the rest of `implementation_plans/` is git-ignored (root `.gitignore` ignores the folder contents except this file), so the other plans exist only on the user's disk.
 
 ---
 
@@ -60,7 +60,7 @@ Language: documentation, comments, docstrings, commit messages and subagent brie
 | Analysis S2, consultant S3 | `grafos/analisis.py`, `grafos/consultor/` | Dummy. |
 | `comprobar_pendientes` | `grafos/comunes.py` | Dummy: returns a fixed warning text. |
 | CLI | `cli.py` | Real wrappers (`procesar`, `reenriquecer`, `consultar`, `etiquetas`) over dummy graphs. |
-| Tracing | `observabilidad.py`, `trazas.py` | Real, but **hangs on exit when Phoenix is not running** (see T0.3). |
+| Tracing | `observabilidad.py`, `trazas.py` | Real. Skips registration when Phoenix does not answer (T0.3 done, uncommitted). |
 
 ### 2.2 Evidence from the first end-to-end run (2026-11-21)
 
@@ -93,7 +93,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done · `[!]` blocked (reaso
 - [x] **T0.0 Format the codebase (first step).** Seven pre-existing files failed `ruff format --check`: `src/finanzas/cli.py`, `grafos/analisis.py`, `grafos/ingesta/extraccion.py`, `grafos/ingesta/grafo.py`, `observabilidad.py`, `tests/test_excel.py`, `tests/test_smoke.py`. Run `uv run ruff format .` from `finanzas/`, then re-run the checks. Whitespace and line-wrapping only, no logic change. *Done 2026-11-21.* Verified: `ruff format --check .` → 35 files already formatted; `ruff check .` clean; `uv run pytest` → 150 passed. Rule from now on: run `ruff format .` before declaring any task done, so this does not build up again.
 - [x] **T0.1 Move the extracts** into `finanzas/data/inputs/carlos/` and `finanzas/data/inputs/conjunta/` (P8). *Done 2026-11-21.* Verified: `git status` shows no `.xls`; three files listed under `data/inputs`. `extractos/` now holds only an empty `carlota/` folder and empty folders; `Invoice-9BF0758D-14284193.pdf` stays in the repo root (not an extract, git-ignored).
 - [x] **T0.2 Commit the EXT-1 to EXT-3 work** — *done 2026-11-21 in three commits: `8184d95` (Excel support), `f5a8742` (private settings overlay), `a0ac5ec` (ruff format). Working tree clean.* Original scope: (`utilidades.py`, `dominio.py`, `lectura/`, tests, fixtures, `pyproject.toml`, `uv.lock`, `.gitignore`, `.gitattributes`). Only when the user asks. Suggested split follows the plan's commit messages (EXT-1, EXT-2, EXT-3). Verified: `uv run pytest` and `uv run ruff check .` pass; `git status` clean of `data/`.
-- [ ] **T0.3 Fix the Phoenix hang on exit.** Bound `force_flush()` with a short timeout (for example `timeout_millis=3000`) in `vaciar_trazas`, and/or skip `register()` when `localhost:6006` does not answer; keep the "never break a run" rule. Design: `observabilidad.py` docstring ("if Phoenix is not running… the run continues"). Verified: `uv run finanzas procesar` with Phoenix stopped exits in seconds and prints only the warning; with Phoenix running, traces still arrive in project `finanzas`. Add a test with an unreachable endpoint.
+- [x] **T0.3 Fix the Phoenix hang on exit.** *Done 2026-11-21:* `_collector_accesible` (1 s TCP probe) skips `register()` with a Spanish warning when the collector does not answer, and `force_flush(timeout_millis=3000)` bounds the flush. Verified: `uv run pytest` → 153 passed; `ruff check` and `ruff format` clean; `uv run finanzas procesar` with Phoenix stopped exits in 2.8 s. Not checked: traces arriving with Phoenix running. Original scope: Bound `force_flush()` with a short timeout (for example `timeout_millis=3000`) in `vaciar_trazas`, and/or skip `register()` when `localhost:6006` does not answer; keep the "never break a run" rule. Design: `observabilidad.py` docstring ("if Phoenix is not running… the run continues"). Verified: `uv run finanzas procesar` with Phoenix stopped exits in seconds and prints only the warning; with Phoenix running, traces still arrive in project `finanzas`. Add a test with an unreachable endpoint.
 - [ ] **T0.4 Documentation drift.** `finanzas/README.md`: `qwen3:27b` → `qwen3:32b` (see commit `2570d82`), status line, supported formats, input folder layout; `ficheros.formato` comment in `esquema.sql`. Overlaps EXT-6.
 
 ### R1 — Real extraction, S1.1 and S1 (base Annex C items 1 and 2, plus EXT-4)
@@ -133,7 +133,7 @@ Design: base plan phases 5 and 7 and Annex C; `plan_extension_xls_finanzas.md` E
 
 ## 4. Next task
 
-> **Next:** T0.3 (Phoenix hang, small and independent), then R1 starting at T1.1.
+> **Next:** R1 starting at T1.1 (consult `code-architect` first, `effort: high`). T0.4 (README drift) is small and can go before or alongside.
 > **Blocked on the user:** real IBANs and file patterns (T2.1); commit requests (T0.2).
 
 ---
@@ -151,7 +151,7 @@ Design: base plan phases 5 and 7 and Annex C; `plan_extension_xls_finanzas.md` E
 | P7 | Joint account | **Closed:** its own user `conjunta`; transfers with `carlos` are `entre_personas`. |
 | P8 | File ownership | **Closed and executed:** `finanzas/data/inputs/carlos/`, `finanzas/data/inputs/conjunta/`. |
 | P9 | Card sign convention | **Closed:** negative = expense. |
-| O1 | Phoenix not running blocks process exit | Open → T0.3. |
+| O1 | Phoenix not running blocks process exit | **Fixed 2026-11-21** (T0.3). |
 | O2 | User naming: `settings.yaml` has `carlos`/`usuario2`, folders were `carlos`/`carlota`/`conjunta` | Open, ask the user. `extractos/carlota/` is empty and was left alone. |
 | O4 | `finanzas/settings.yaml` line 19 reads `qwen3:3 2b` (stray space; should be `qwen3:32b`). An uncommitted edit not made by an agent. | **Fixed 2026-11-21** (now `qwen3:32b`). The line changed twice during the session (`3 2b`, then `3 32b`), so something outside the agents was editing it: re-check it after the next editor session. |
 | O5 | Deny rules only block the Read/Edit tools, not subprocesses (`uv run python`, shell) | Known limit; an OS-level sandbox would be the only hard block (not evaluated on Windows). |
@@ -218,4 +218,5 @@ Do not print amounts, concepts, card numbers or IBANs from real files into logs 
 | 2026-11-21 | Private settings overlay: `config.py` (`settings.local.yaml`, allow-list, lists replaced, skipped with explicit `ruta`), ignore rules, `settings.local.example.yaml`, `tests/conftest.py` (hermetic), `test_config_local.py`, `test_sin_ibans_reales.py`, `.claude/settings.json` deny rules, masked IBAN in the `conexion.py` warning | — (uncommitted) | `uv run pytest` → 150 passed; `ruff check` clean. The `Read` deny was seen to work; the default-path overlay was not run end to end with a real file on purpose. The 7 older files that failed `ruff format --check` were fixed afterwards (T0.0). |
 | 2026-11-21 | T0.2 Committed everything pending | `8184d95`, `f5a8742`, `a0ac5ec` | EXT-1 to EXT-3, private settings overlay, formatting. Fixed `qwen3:32b` typo in `settings.yaml` beforehand (O4). |
 | 2026-11-21 | Versioned this document (`.gitignore` exception) | `c9ab117` | The other plans stay ignored. |
+| 2026-11-21 | T0.3 Phoenix hang: reachability probe and bounded flush in `observabilidad.py`, new `tests/test_observabilidad.py` | — (uncommitted) | 153 tests pass; `procesar` exits in 2.8 s without Phoenix. |
 | 2026-11-21 | T0.0 `ruff format .` over 7 files | `a0ac5ec` | Formatting only. `ruff format --check` clean, `ruff check` clean, 150 tests pass. |

@@ -1,6 +1,7 @@
 """Pure helper functions. The only I/O is reading files: sha256_fichero and the signature check."""
 
 import hashlib
+import os
 import re
 import unicodedata
 from collections.abc import Iterable
@@ -8,7 +9,12 @@ from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 
-from finanzas.modelos.dominio import CeldaNativa, FormatoExtracto, FormatoFichero
+from finanzas.modelos.dominio import (
+    CeldaNativa,
+    FicheroDetectado,
+    FormatoExtracto,
+    FormatoFichero,
+)
 
 _TAMANO_BLOQUE = 64 * 1024
 
@@ -137,6 +143,82 @@ def formato_de_fichero(ruta: Path) -> tuple[FormatoFichero, str | None]:
                 )
             return "desconocido", f"{ruta.name}: la extensión es {ruta.suffix} pero {detalle}"
     return candidato, None
+
+
+# --- Input folder scan (T1.1) -------------------------------------------------------------
+
+_PREFIJOS_IGNORADOS = (".", "~$")  # dotfiles and Office lock files (~$libro.xlsx)
+_NOMBRES_IGNORADOS = frozenset({"thumbs.db", "desktop.ini"})
+_SUFIJOS_TEMPORALES = frozenset({".tmp", ".part", ".crdownload"})
+
+
+def es_nombre_ignorable(nombre: str) -> bool:
+    """True for hidden, lock and temporary names that are skipped silently."""
+    minusculas = nombre.lower()
+    return (
+        nombre.startswith(_PREFIJOS_IGNORADOS)
+        or minusculas in _NOMBRES_IGNORADOS
+        or Path(minusculas).suffix in _SUFIJOS_TEMPORALES
+    )
+
+
+def _ficheros_ordenados(raiz: Path) -> list[Path]:
+    """Regular files under raiz, pruning ignorable names, sorted by relative POSIX path.
+
+    os.walk does not descend into symlinked folders; symlinked files are skipped.
+    """
+    encontrados: list[Path] = []
+    for carpeta, subcarpetas, nombres in os.walk(raiz):
+        subcarpetas[:] = [d for d in subcarpetas if not es_nombre_ignorable(d)]
+        for nombre in nombres:
+            ruta = Path(carpeta) / nombre
+            if not es_nombre_ignorable(nombre) and not ruta.is_symlink():
+                encontrados.append(ruta)
+    return sorted(encontrados, key=lambda p: p.relative_to(raiz).as_posix())
+
+
+def escanear_carpeta(raiz: Path) -> tuple[list[FicheroDetectado], list[str]]:
+    """Scan raiz/<usuario>/... and return (accepted files, Spanish avisos).
+
+    Deterministic: sorted by relative POSIX path. Never raises for a missing folder or an
+    unreadable file; each problem becomes an aviso and the file is left out. Files with
+    identical content keep only the first one (sha256 is the key of `ficheros`).
+    """
+    if not raiz.is_dir():
+        return [], [f"La carpeta de inputs no existe: {raiz}"]
+    detectados: list[FicheroDetectado] = []
+    avisos: list[str] = []
+    por_sha256: dict[str, str] = {}
+    for ruta in _ficheros_ordenados(raiz):
+        relativa = ruta.relative_to(raiz)
+        rel = relativa.as_posix()
+        if len(relativa.parts) == 1:
+            avisos.append(f"{rel}: está fuera de una carpeta de usuario y se ignora")
+            continue
+        formato, aviso = formato_de_fichero(ruta)
+        if formato == "desconocido":
+            avisos.append(aviso or f"{rel}: formato no admitido")
+            continue
+        try:
+            sha256 = sha256_fichero(ruta)
+            tamano = ruta.stat().st_size
+        except OSError as exc:  # e.g. a file locked by another process
+            avisos.append(f"{rel}: no se puede leer el fichero ({exc.strerror or exc})")
+            continue
+        if sha256 in por_sha256:
+            avisos.append(f"{rel}: contenido idéntico a {por_sha256[sha256]}; se ignora")
+            continue
+        por_sha256[sha256] = rel
+        detectados.append(
+            FicheroDetectado(
+                usuario=relativa.parts[0],
+                ruta=rel,
+                sha256=sha256,
+                formato=formato,
+                tamano_bytes=tamano,
+            )
+        )
+    return detectados, avisos
 
 
 # --- Cell conversion (Excel values, decisions X4 to X6) ---------------------------------

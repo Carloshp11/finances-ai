@@ -36,6 +36,16 @@ def bd_temporal(tmp_path, monkeypatch):
     return ruta
 
 
+@pytest.fixture(autouse=True)
+def inputs_temporales(tmp_path, monkeypatch):
+    """The ingestion scan must never see real statements."""
+    for usuario, nombre, texto in (("carlos", "a.csv", "a\n"), ("usuario2", "b.csv", "b\n")):
+        carpeta = tmp_path / "inputs" / usuario
+        carpeta.mkdir(parents=True)
+        (carpeta / nombre).write_text(texto, encoding="utf-8")
+    monkeypatch.setenv("FINANZAS_RUTAS__INPUTS", str(tmp_path / "inputs"))
+
+
 def test_inicializar_bd_idempotente(bd_temporal):
     settings = cargar_settings()
     inicializar_bd(settings)

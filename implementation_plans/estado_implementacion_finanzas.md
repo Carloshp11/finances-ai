@@ -11,7 +11,7 @@
 > 4. **When you finish a task, update this file in the same session**: change its checkbox, fill `Verified:` with the command you ran and its result, add a row to the change log (section 8), and refresh the snapshot (section 2) if what is real or dummy changed. Update the "Last updated" line.
 > 5. Never mark a task `[x]` without running its `Verified:` command.
 >
-> **Last updated:** 2026-11-21 · branch `feat/langgraph-standards` · HEAD `c9ab117` (EXT-1 to EXT-3 and the private settings overlay are committed; T0.3 is uncommitted). This file is versioned; the rest of `implementation_plans/` is git-ignored (root `.gitignore` ignores the folder contents except this file), so the other plans exist only on the user's disk.
+> **Last updated:** 2026-11-21 · branch `feat/langgraph-standards` · HEAD `c9ab117` (EXT-1 to EXT-3 and the private settings overlay are committed; T0.3 is committed as `d1c5ae3`; T1.1 is uncommitted). This file is versioned; the rest of `implementation_plans/` is git-ignored (root `.gitignore` ignores the folder contents except this file), so the other plans exist only on the user's disk.
 
 ---
 
@@ -54,7 +54,7 @@ Language: documentation, comments, docstrings, commit messages and subagent brie
 | Pure helpers | `utilidades.py` | **Real**, uncommitted additions: `detectar_formato_por_contenido`, `formato_de_fichero`, `importe_a_centimos`, `fecha_a_date`, `celda_a_texto`. |
 | Excel reader | `lectura/excel.py` (new, uncommitted) | **Real.** `leer_excel`, `localizar_cabecera`. **Not wired into any graph node.** |
 | Root graph | `grafos/raiz.py` | Topology real; `nodo_marcar_obsoletos` dummy. |
-| Ingestion S1 | `grafos/ingesta/grafo.py` | Topology and fan-out real. **Dummy:** `recuperar_en_proceso`, `escanear_inputs` (returns two fixed fake files), `filtrar_pendientes`, `consolidar` (only the period union and avisos are real), and the `enriquecer` call. |
+| Ingestion S1 | `grafos/ingesta/grafo.py` | Topology and fan-out real. **Dummy:** `recuperar_en_proceso`, `filtrar_pendientes`, `consolidar` (only the period union and avisos are real), and the `enriquecer` call. |
 | Extraction S1.1 | `grafos/ingesta/extraccion.py` | Topology real. **Dummy:** `marcar_en_proceso`, `leer_fichero`, `normalizar`, `validar`, `persistir`. `resolver_formato` computes the real signature but the mapping is fixed. Nothing is written to the database. |
 | Enrichment S1.2 | `grafos/ingesta/enriquecimiento.py` | Topology real, logic dummy (no LLM call). |
 | Analysis S2, consultant S3 | `grafos/analisis.py`, `grafos/consultor/` | Dummy. |
@@ -100,7 +100,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done · `[!]` blocked (reaso
 
 Design: base plan phases 5 and 7 and Annex C; `plan_extension_xls_finanzas.md` EXT-1 step 4 and EXT-4; decisions X4 to X10. **Consult `code-architect` before starting** (several modules, `effort: high`). Suggested order inside R1:
 
-- [ ] **T1.1 `escanear_inputs` real.** Walk `rutas.inputs/*/`; each subfolder is a `usuario`. For each file use `formato_de_fichero` (extension plus signature); unknown formats go to `avisos` and are ignored; compute `sha256_fichero`; `ruta` relative to `rutas.inputs`. Also add the EXT-1 step 4 behaviour (aviso per rejected file). Verified: run against `data/inputs` returns the 3 files with formats `xls`; a renamed HTML file yields `desconocido` plus an aviso.
+- [x] **T1.1 `escanear_inputs` real.** *Done 2026-11-21:* helper `escanear_carpeta` in `utilidades.py` (recursive, sorted by relative POSIX path, silent skip of dotfiles, `~$` lock files and temp suffixes, aviso for unsupported formats, files outside a user folder, unreadable files and a missing folder; files with identical sha256 collapse to the first, with an aviso). The node reads `rutas.inputs` from settings. `test_smoke.py` now points `FINANZAS_RUTAS__INPUTS` at synthetic files. Verified: `escanear_carpeta` on `data/inputs` → 3 files, format `xls`, 0 avisos; `uv run pytest` → 165 passed; ruff clean. Original scope: Walk `rutas.inputs/*/`; each subfolder is a `usuario`. For each file use `formato_de_fichero` (extension plus signature); unknown formats go to `avisos` and are ignored; compute `sha256_fichero`; `ruta` relative to `rutas.inputs`. Also add the EXT-1 step 4 behaviour (aviso per rejected file). Verified: run against `data/inputs` returns the 3 files with formats `xls`; a renamed HTML file yields `desconocido` plus an aviso.
 - [ ] **T1.2 `recuperar_en_proceso` and `filtrar_pendientes` against the database.** `UPDATE ficheros SET estado='pendiente' WHERE estado='en_proceso'` with a Spanish aviso; drop files whose `sha256` is already `procesado` or `pendiente_confirmacion`. Own connection per node.
 - [ ] **T1.3 `marcar_en_proceso` and `persistir` real.** UPSERT into `ficheros`; `persistir` in **one transaction**: resolve `fichero_id` from `sha256`, `INSERT OR IGNORE` operations by `hash_operacion`, set `ficheros.estado='procesado'`, `n_operaciones`, `procesado_en`. `marcar_error` and `marcar_pendiente_confirmacion` write `ficheros.estado`/`error`. Mind: `n_operaciones` should count rows actually inserted vs offered (decide and document).
 - [ ] **T1.4 `leer_fichero` dispatch.** Excel branch uses `leer_excel(ruta, hoja=settings.formato.hoja_excel)`; add `formato.hoja_excel: 0 # TODO(P5)` to `settings.yaml` and `FormatoSettings`; add `avisos` to `EstadoExtraccion` (reducer `operator.add`) and `ResultadoExtraccion`. CSV/TSV branch (pandas, delimiter and encoding detection) is the base Annex C item 2 part. `# TODO(P1)` stays for PDF.
@@ -133,7 +133,7 @@ Design: base plan phases 5 and 7 and Annex C; `plan_extension_xls_finanzas.md` E
 
 ## 4. Next task
 
-> **Next:** R1 starting at T1.1 (consult `code-architect` first, `effort: high`). T0.4 (README drift) is small and can go before or alongside.
+> **Next:** R1 at T1.2 (consult `code-architect` first, `effort: high`). T0.4 (README drift) is small and can go before or alongside.
 > **Blocked on the user:** real IBANs and file patterns (T2.1); commit requests (T0.2).
 
 ---
@@ -219,4 +219,5 @@ Do not print amounts, concepts, card numbers or IBANs from real files into logs 
 | 2026-11-21 | T0.2 Committed everything pending | `8184d95`, `f5a8742`, `a0ac5ec` | EXT-1 to EXT-3, private settings overlay, formatting. Fixed `qwen3:32b` typo in `settings.yaml` beforehand (O4). |
 | 2026-11-21 | Versioned this document (`.gitignore` exception) | `c9ab117` | The other plans stay ignored. |
 | 2026-11-21 | T0.3 Phoenix hang: reachability probe and bounded flush in `observabilidad.py`, new `tests/test_observabilidad.py` | — (uncommitted) | 153 tests pass; `procesar` exits in 2.8 s without Phoenix. |
+| 2026-11-21 | T1.1 real `escanear_inputs`: `escanear_carpeta` in `utilidades.py`, `tests/test_escaneo.py`, smoke-test fixture | — (uncommitted) | 165 tests pass; real inputs give 3 `xls`, 0 avisos. |
 | 2026-11-21 | T0.0 `ruff format .` over 7 files | `a0ac5ec` | Formatting only. `ruff format --check` clean, `ruff check` clean, 150 tests pass. |

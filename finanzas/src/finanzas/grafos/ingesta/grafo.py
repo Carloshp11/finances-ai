@@ -8,6 +8,7 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
+from finanzas.config import cargar_settings
 from finanzas.grafos.ingesta.enriquecimiento import construir_grafo_enriquecimiento
 from finanzas.grafos.ingesta.extraccion import construir_grafo_extraccion
 from finanzas.modelos.dominio import (
@@ -17,6 +18,7 @@ from finanzas.modelos.dominio import (
 )
 from finanzas.modelos.estados import EstadoIngesta
 from finanzas.trazas import traza
+from finanzas.utilidades import escanear_carpeta
 
 _GRAFO = "ingesta"
 
@@ -33,26 +35,9 @@ def recuperar_en_proceso(state: EstadoIngesta) -> dict:
 
 def escanear_inputs(state: EstadoIngesta) -> dict:
     traza(_GRAFO, "escanear_inputs")
-    # TODO(P1): the statement origin is not confirmed. Future: walk rutas.inputs/*/, each
-    # subfolder is a user; .csv -> csv, .tsv/.txt -> tsv, anything else -> desconocido (warning,
-    # ignored). Compute sha256_fichero for each file.
-    detectados = [
-        FicheroDetectado(
-            usuario="carlos",
-            ruta="carlos/extracto_dummy.csv",
-            sha256="0" * 64,
-            formato="csv",
-            tamano_bytes=0,
-        ),
-        FicheroDetectado(
-            usuario="usuario2",
-            ruta="usuario2/extracto_dummy.csv",
-            sha256="1" * 64,
-            formato="csv",
-            tamano_bytes=0,
-        ),
-    ]
-    return {"ficheros_detectados": detectados}
+    # Each subfolder of rutas.inputs is a user. TODO(P1): PDF is not supported yet.
+    detectados, avisos = escanear_carpeta(cargar_settings().rutas.inputs)
+    return {"ficheros_detectados": detectados, "avisos": avisos}
 
 
 def filtrar_pendientes(state: EstadoIngesta) -> dict:

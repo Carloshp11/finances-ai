@@ -11,7 +11,7 @@
 > 4. **When you finish a task, update this file in the same session**: change its checkbox, fill `Verified:` with the command you ran and its result, add a row to the change log (section 8), and refresh the snapshot (section 2) if what is real or dummy changed. Update the "Last updated" line.
 > 5. Never mark a task `[x]` without running its `Verified:` command.
 >
-> **Last updated:** 2026-11-21 · branch `feat/langgraph-standards` · HEAD `a0ac5ec` (EXT-1 to EXT-3 and the private settings overlay are committed; this `implementation_plans/` folder is git-ignored, so this file is not versioned).
+> **Last updated:** 2026-11-21 · branch `feat/langgraph-standards` · HEAD `c9ab117` (EXT-1 to EXT-3 and the private settings overlay are committed). This file is versioned; the rest of `implementation_plans/` is git-ignored (root `.gitignore` ignores the folder contents except this file), so the other plans exist only on the user's disk.
 
 ---
 
@@ -217,4 +217,5 @@ Do not print amounts, concepts, card numbers or IBANs from real files into logs 
 | 2026-11-21 | Created this document | — | Not committed. |
 | 2026-11-21 | Private settings overlay: `config.py` (`settings.local.yaml`, allow-list, lists replaced, skipped with explicit `ruta`), ignore rules, `settings.local.example.yaml`, `tests/conftest.py` (hermetic), `test_config_local.py`, `test_sin_ibans_reales.py`, `.claude/settings.json` deny rules, masked IBAN in the `conexion.py` warning | — (uncommitted) | `uv run pytest` → 150 passed; `ruff check` clean. The `Read` deny was seen to work; the default-path overlay was not run end to end with a real file on purpose. The 7 older files that failed `ruff format --check` were fixed afterwards (T0.0). |
 | 2026-11-21 | T0.2 Committed everything pending | `8184d95`, `f5a8742`, `a0ac5ec` | EXT-1 to EXT-3, private settings overlay, formatting. Fixed `qwen3:32b` typo in `settings.yaml` beforehand (O4). |
+| 2026-11-21 | Versioned this document (`.gitignore` exception) | `c9ab117` | The other plans stay ignored. |
 | 2026-11-21 | T0.0 `ruff format .` over 7 files | `a0ac5ec` | Formatting only. `ruff format --check` clean, `ruff check` clean, 150 tests pass. |

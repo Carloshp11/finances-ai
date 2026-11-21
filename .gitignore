@@ -222,3 +222,12 @@ __marimo__/
 # JetBrains IDE settings (personal, not shared)
 .idea/
 /implementation_plans/
+/extractos/
+
+# Extracts and bank documents dropped in the repository root by mistake
+/*.xls
+/*.xlsx
+/*.pdf
+
+# Second line of defence for the private settings overlay
+/finanzas/settings.local.yaml

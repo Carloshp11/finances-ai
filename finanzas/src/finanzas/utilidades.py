@@ -1,10 +1,14 @@
-"""Pure helper functions: no I/O apart from sha256_fichero, which only reads a file."""
+"""Pure helper functions. The only I/O is reading files: sha256_fichero and the signature check."""
 
 import hashlib
+import re
 import unicodedata
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
+
+from finanzas.modelos.dominio import CeldaNativa, FormatoExtracto, FormatoFichero
 
 _TAMANO_BLOQUE = 64 * 1024
 
@@ -75,3 +79,170 @@ def sha256_fichero(ruta: Path) -> str:
         for bloque in iter(lambda: fichero.read(_TAMANO_BLOQUE), b""):
             digest.update(bloque)
     return digest.hexdigest()
+
+
+# --- Format detection -------------------------------------------------------------------
+
+FIRMA_OLE2 = bytes.fromhex("D0CF11E0A1B11AE1")  # .xls (BIFF8 inside an OLE2 container)
+FIRMA_ZIP = b"PK\x03\x04"  # .xlsx (zip container)
+
+EXTENSION_FORMATO: dict[str, FormatoFichero] = {
+    ".csv": "csv",
+    ".tsv": "tsv",
+    ".txt": "tsv",
+    ".xls": "xls",
+    ".xlsx": "xlsx",
+}  # TODO(P1): PDF is not supported yet
+
+
+def detectar_formato_por_contenido(ruta: Path) -> FormatoFichero:
+    """Look at the first bytes of the file, not at its extension.
+
+    OLE2 signature -> 'xls'; ZIP signature -> 'xlsx'. Anything else -> 'desconocido' (for
+    example HTML or XML saved with an .xls name). Raises OSError if the file cannot be read.
+    """
+    with open(ruta, "rb") as fichero:
+        cabecera = fichero.read(len(FIRMA_OLE2))
+    if cabecera.startswith(FIRMA_OLE2):
+        return "xls"
+    if cabecera.startswith(FIRMA_ZIP):
+        return "xlsx"
+    return "desconocido"
+
+
+def formato_de_fichero(ruta: Path) -> tuple[FormatoFichero, str | None]:
+    """Return (formato, aviso) for a file: by extension, plus a signature check for Excel.
+
+    The aviso is a Spanish, user-facing message, or None when the file is accepted. Text
+    formats (csv, tsv) are decided by extension only.
+    """
+    candidato = EXTENSION_FORMATO.get(ruta.suffix.lower())
+    if candidato is None:
+        extension = ruta.suffix or "sin extensión"
+        return "desconocido", f"{ruta.name}: formato no admitido ({extension})"
+    if candidato in ("xls", "xlsx"):
+        try:
+            real = detectar_formato_por_contenido(ruta)
+        except OSError as exc:  # e.g. the file is locked because Excel has it open
+            return (
+                "desconocido",
+                f"{ruta.name}: no se puede leer el fichero ({exc.strerror or exc})",
+            )
+        if real != candidato:
+            if real == "desconocido":
+                detalle = "el contenido no es un libro Excel (¿HTML o XML guardado como Excel?)"
+            else:
+                detalle = (
+                    f"el contenido es de tipo {real} (¿renombrado o protegido con contraseña?)"
+                )
+            return "desconocido", f"{ruta.name}: la extensión es {ruta.suffix} pero {detalle}"
+    return candidato, None
+
+
+# --- Cell conversion (Excel values, decisions X4 to X6) ---------------------------------
+
+# Serial 61 is 1900-03-01. Earlier serials are affected by Excel's fictitious 1900-02-29.
+EPOCA_EXCEL = date(1899, 12, 30)
+_SERIE_EXCEL_MINIMA = 61
+_CIEN = Decimal(100)
+_UN = Decimal(1)
+
+
+def _decimal_desde_texto(texto: str, formato: FormatoExtracto) -> Decimal:
+    """Parse a text amount strictly, with the separators of the mapping.
+
+    Strict on purpose: with Spanish separators, '45.30' would otherwise become 4530 once the
+    '.' is dropped as a thousands separator. Thousands groups must have exactly three digits.
+    """
+    limpio = texto.strip()
+    decimal = re.escape(formato.separador_decimal)
+    if formato.separador_miles:
+        miles = re.escape(formato.separador_miles)
+        parte_entera = rf"(?:\d{{1,3}}(?:{miles}\d{{3}})+|\d+)"
+    else:
+        parte_entera = r"\d+"
+    if re.fullmatch(rf"[+-]?{parte_entera}(?:{decimal}\d+)?", limpio, re.ASCII) is None:
+        raise ValueError(f"Importe no válido: {texto!r}")
+    if formato.separador_miles:
+        limpio = limpio.replace(formato.separador_miles, "")
+    return Decimal(limpio.replace(formato.separador_decimal, "."))
+
+
+def importe_a_centimos(valor: CeldaNativa, formato: FormatoExtracto) -> int:
+    """Convert an amount cell to integer cents. Money never goes through float arithmetic.
+
+    - int/float (numeric cell): Decimal(str(valor)). str() gives the shortest repr, so 45.3
+      is exactly Decimal('45.3') and not 45.2999999999999971578...
+    - str (text cell): parsed strictly with the separators of `formato`.
+    - bool, None, dates, NaN, infinity or overflow: ValueError.
+    Rounding is ROUND_HALF_UP to the cent (ties go away from zero).
+    """
+    if isinstance(valor, str):
+        importe = _decimal_desde_texto(valor, formato)
+    elif isinstance(valor, bool) or not isinstance(valor, int | float):
+        raise ValueError(f"Importe no válido: {valor!r}")
+    else:
+        importe = Decimal(str(valor))
+    if not importe.is_finite():
+        raise ValueError(f"Importe no válido: {valor!r}")
+    try:
+        return int((importe * _CIEN).quantize(_UN, rounding=ROUND_HALF_UP))
+    except InvalidOperation:  # magnitude beyond the precision of the default context
+        raise ValueError(f"Importe fuera de rango: {valor!r}") from None
+
+
+def fecha_a_date(valor: CeldaNativa, formato: FormatoExtracto) -> date:
+    """Convert a date cell to date.
+
+    - datetime -> .date() (checked before date, because datetime is a subclass of date)
+    - date -> unchanged
+    - str -> strptime with formato.formato_fecha
+    - int/float -> Excel serial number counted from 1899-12-30; the time fraction is dropped.
+      Serials below 61 are rejected (Excel's 1900 leap-year bug makes them ambiguous).
+      The 1904 date system is not supported.
+    - bool, None or anything else: ValueError.
+    """
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    if isinstance(valor, str):
+        try:
+            return datetime.strptime(valor.strip(), formato.formato_fecha).date()
+        except ValueError:
+            raise ValueError(
+                f"Fecha no válida: {valor!r} (formato esperado {formato.formato_fecha})"
+            ) from None
+    if isinstance(valor, bool) or not isinstance(valor, int | float):
+        raise ValueError(f"Fecha no válida: {valor!r}")
+    try:
+        dias = int(valor)  # ValueError for NaN, OverflowError for infinity
+        if dias >= _SERIE_EXCEL_MINIMA:
+            return EPOCA_EXCEL + timedelta(days=dias)  # OverflowError beyond year 9999
+    except (ValueError, OverflowError):
+        pass
+    raise ValueError(f"Fecha no válida: número de serie {valor!r}")
+
+
+def celda_a_texto(valor: CeldaNativa) -> str:
+    """Text for logs and for the LLM sample (filas_muestra). Never raises.
+
+    None -> ''; text is stripped; dates in ISO format (a datetime at midnight is shown as a
+    date); numbers in plain notation, with no thousands separator and no trailing '.0'.
+    """
+    if valor is None:
+        return ""
+    if isinstance(valor, str):
+        return valor.strip()
+    if isinstance(valor, bool):
+        return str(valor)
+    if isinstance(valor, datetime):
+        if valor.time() == datetime.min.time():
+            return valor.date().isoformat()
+        return valor.isoformat(sep=" ", timespec="seconds")
+    if isinstance(valor, date):
+        return valor.isoformat()
+    if not isinstance(valor, int | float):
+        return str(valor).strip()  # e.g. a time cell: never let a log line raise
+    numero = Decimal(str(valor)).normalize()  # also avoids scientific notation
+    return "0" if numero == 0 else format(numero, "f")

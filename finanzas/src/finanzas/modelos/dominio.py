@@ -1,11 +1,15 @@
 """Domain models: the data contracts passed between nodes and written to the database."""
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
-FormatoFichero = Literal["csv", "tsv", "desconocido"]
+FormatoFichero = Literal["csv", "tsv", "xls", "xlsx", "desconocido"]
+# Native Python value of one spreadsheet cell, as returned by the Excel reader (decision X4).
+# Lives here, next to the other contracts, so that utilidades.py and lectura/excel.py can both
+# import it without a cycle and without pulling pandas.
+CeldaNativa = str | int | float | datetime | date | None
 EstadoFichero = Literal["pendiente", "en_proceso", "procesado", "error", "pendiente_confirmacion"]
 TipoTransferencia = Literal["ninguna", "interna_propia", "entre_personas"]
 

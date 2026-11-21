@@ -221,7 +221,10 @@ __marimo__/
 
 # JetBrains IDE settings (personal, not shared)
 .idea/
-/implementation_plans/
+# Implementation plans stay local, except the living status document for agents.
+# (Ignore the folder CONTENTS: git cannot re-include a file inside an ignored folder.)
+/implementation_plans/*
+!/implementation_plans/estado_implementacion_finanzas.md
 /extractos/
 
 # Extracts and bank documents dropped in the repository root by mistake

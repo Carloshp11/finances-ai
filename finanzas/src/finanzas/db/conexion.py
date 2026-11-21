@@ -51,7 +51,9 @@ def sincronizar_cuentas(conn: sqlite3.Connection, cuentas: list[CuentaConfig]) -
         )
     for fila in conn.execute("SELECT iban FROM cuentas"):
         if fila["iban"] not in ibans_config:
-            print(f"Aviso: la cuenta {fila['iban']} está en la BD pero no en settings.yaml")
+            # Masked on purpose: IBANs must not reach logs or an agent's context.
+            enmascarado = f"{fila['iban'][:2]}…{fila['iban'][-4:]}"
+            print(f"Aviso: la cuenta {enmascarado} está en la BD pero no en la configuración")
 
 
 def sincronizar_categorias(conn: sqlite3.Connection, categorias: list[CategoriaConfig]) -> None:

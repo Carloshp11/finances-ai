@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(/finanzas/settings.local.yaml)",
+      "Read(/.env)",
+      "Read(/finanzas/.env)",
+      "Read(/finanzas/data/**)",
+      "Read(/extractos/**)",
+      "Edit(/finanzas/settings.local.yaml)",
+      "Edit(/.env)",
+      "Edit(/finanzas/.env)",
+      "Edit(/finanzas/data/**)",
+      "Edit(/extractos/**)"
+    ]
+  }
+}

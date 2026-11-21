@@ -99,19 +99,58 @@ class Settings(BaseSettings):
 
 
 RAIZ_PROYECTO = Path(__file__).resolve().parents[2]
+RUTA_SETTINGS = RAIZ_PROYECTO / "settings.yaml"
+RUTA_SETTINGS_LOCAL = RAIZ_PROYECTO / "settings.local.yaml"
+
+# Keys that may come from the git-ignored local file: private data only. Anything else in
+# that file is rejected, so a stray entry cannot silently change paths, models or categories.
+CLAVES_LOCALES_PERMITIDAS = frozenset({"cuentas", "cuentas_por_fichero"})
 
 
-def cargar_settings(ruta: str | Path | None = None) -> Settings:
+def _leer_yaml(ruta: Path) -> dict[str, Any]:
+    with open(ruta, encoding="utf-8") as fichero:
+        return yaml.safe_load(fichero) or {}
+
+
+def _aplicar_overlay_local(datos: dict[str, Any], ruta_local: Path | None) -> dict[str, Any]:
+    """Replace the allow-listed keys with those of the local file, if it exists.
+
+    A missing file is not an error. Each key REPLACES the base value (lists are never
+    concatenated), so the placeholders in settings.yaml disappear once real values exist.
+    """
+    if ruta_local is None or not ruta_local.is_file():
+        return datos
+    local = _leer_yaml(ruta_local)
+    desconocidas = sorted(set(local) - CLAVES_LOCALES_PERMITIDAS)
+    if desconocidas:
+        # Key names only, never values: they may be private.
+        raise ValueError(
+            f"{ruta_local.name}: claves no permitidas {desconocidas}; "
+            f"solo se admiten {sorted(CLAVES_LOCALES_PERMITIDAS)}"
+        )
+    return {**datos, **local}
+
+
+def cargar_settings(
+    ruta: str | Path | None = None, ruta_local: str | Path | None = None
+) -> Settings:
     """Read the YAML with yaml.safe_load and build Settings.
 
-    By default it uses <project root>/settings.yaml, so it works from any directory.
+    By default it uses <project root>/settings.yaml, so it works from any directory,
+    merged with <project root>/settings.local.yaml when that git-ignored file exists
+    (only `cuentas` and `cuentas_por_fichero`, replaced wholesale).
+    With an explicit `ruta` the local overlay is skipped unless `ruta_local` is also given.
     Relative paths in `rutas` are resolved against the project root.
-    FINANZAS_* environment variables take priority over the YAML
+    Priority: FINANZAS_* environment variables > local overlay > settings.yaml
     (see settings_customise_sources).
     """
-    ruta_yaml = Path(ruta) if ruta is not None else RAIZ_PROYECTO / "settings.yaml"
-    with open(ruta_yaml, encoding="utf-8") as fichero:
-        datos: dict[str, Any] = yaml.safe_load(fichero) or {}
+    if ruta is None:
+        ruta_yaml = RUTA_SETTINGS
+        local = RUTA_SETTINGS_LOCAL if ruta_local is None else Path(ruta_local)
+    else:
+        ruta_yaml = Path(ruta)
+        local = None if ruta_local is None else Path(ruta_local)
+    datos = _aplicar_overlay_local(_leer_yaml(ruta_yaml), local)
     settings = Settings(**datos)
     for campo in ("inputs", "outputs", "base_datos"):
         valor = getattr(settings.rutas, campo)

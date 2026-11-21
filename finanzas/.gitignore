@@ -10,3 +10,6 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# Private account data (real IBANs); see settings.local.example.yaml
+/settings.local.yaml

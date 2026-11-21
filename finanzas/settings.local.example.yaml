@@ -1,0 +1,13 @@
+# Copy this file to settings.local.yaml (git-ignored) and replace the placeholders with the
+# real IBANs. Never put real values in this example file or in settings.yaml: a test fails
+# if a tracked YAML file contains an IBAN that is not a known placeholder.
+#
+# Only these two keys are accepted. Each one REPLACES the value in settings.yaml (lists are
+# not concatenated), so list every account here, not only the new ones.
+cuentas:
+  - {iban: ES0000000000000000000000, usuario: carlos, alias: cuenta principal}
+  - {iban: ES1111111111111111111111, usuario: conjunta, alias: cuenta conjunta}
+
+cuentas_por_fichero:
+  - {usuario: carlos, patron: "<real file pattern>*.xls", iban: ES0000000000000000000000}
+  - {usuario: conjunta, patron: "<real file pattern>*.xls", iban: ES1111111111111111111111}

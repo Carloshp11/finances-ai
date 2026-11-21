@@ -47,8 +47,10 @@ def _registrar_phoenix() -> None:
             LangChainInstrumentor().instrument(tracer_provider=_provider)
         except Exception as error:  # noqa: BLE001 - tracing must never break a run
             _provider = None
-            print(f"Aviso: no se pudo activar Phoenix ({error}); se continúa sin trazas.",
-                  file=sys.stderr)
+            print(
+                f"Aviso: no se pudo activar Phoenix ({error}); se continúa sin trazas.",
+                file=sys.stderr,
+            )
 
 
 def construir_config(thread_id: str | None = None, recursion_limit: int = 1000) -> dict[str, Any]:

@@ -37,10 +37,20 @@ def escanear_inputs(state: EstadoIngesta) -> dict:
     # subfolder is a user; .csv -> csv, .tsv/.txt -> tsv, anything else -> desconocido (warning,
     # ignored). Compute sha256_fichero for each file.
     detectados = [
-        FicheroDetectado(usuario="carlos", ruta="carlos/extracto_dummy.csv",
-                         sha256="0" * 64, formato="csv", tamano_bytes=0),
-        FicheroDetectado(usuario="usuario2", ruta="usuario2/extracto_dummy.csv",
-                         sha256="1" * 64, formato="csv", tamano_bytes=0),
+        FicheroDetectado(
+            usuario="carlos",
+            ruta="carlos/extracto_dummy.csv",
+            sha256="0" * 64,
+            formato="csv",
+            tamano_bytes=0,
+        ),
+        FicheroDetectado(
+            usuario="usuario2",
+            ruta="usuario2/extracto_dummy.csv",
+            sha256="1" * 64,
+            formato="csv",
+            tamano_bytes=0,
+        ),
     ]
     return {"ficheros_detectados": detectados}
 

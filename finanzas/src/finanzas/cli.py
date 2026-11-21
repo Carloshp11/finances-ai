@@ -60,9 +60,7 @@ def _cmd_reenriquecer(args: argparse.Namespace) -> int:
         modo="rango", desde=args.desde, hasta=args.hasta, usuario=args.usuario
     )
     grafo = construir_grafo_raiz()
-    grafo.invoke(
-        {"modo": "reenriquecer", "filtro_reenriquecimiento": filtro}, construir_config()
-    )
+    grafo.invoke({"modo": "reenriquecer", "filtro_reenriquecimiento": filtro}, construir_config())
     return 0
 
 

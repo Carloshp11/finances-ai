@@ -17,7 +17,12 @@ from langchain_core.messages import HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
 TABLAS_ESPERADAS = {
-    "ficheros", "formatos_extracto", "cuentas", "categorias", "operaciones", "resumenes",
+    "ficheros",
+    "formatos_extracto",
+    "cuentas",
+    "categorias",
+    "operaciones",
+    "resumenes",
 }
 
 
@@ -47,8 +52,11 @@ def test_inicializar_bd_idempotente(bd_temporal):
 
 def test_extraccion_dummy():
     salida = construir_grafo_extraccion().invoke(
-        {"fichero": FicheroDetectado(usuario="carlos", ruta="carlos/x.csv", sha256="a",
-                                     formato="csv", tamano_bytes=10)}
+        {
+            "fichero": FicheroDetectado(
+                usuario="carlos", ruta="carlos/x.csv", sha256="a", formato="csv", tamano_bytes=10
+            )
+        }
     )
     assert salida["resultado"].estado == "procesado"
     assert salida["resultado"].n_operaciones == 2
@@ -56,8 +64,11 @@ def test_extraccion_dummy():
 
 def test_enriquecimiento_termina():
     salida = construir_grafo_enriquecimiento().invoke(
-        {"filtro": FiltroEnriquecimiento(modo="pendientes"), "cursor_id": 0,
-         "resumen": ResumenEnriquecimiento()},
+        {
+            "filtro": FiltroEnriquecimiento(modo="pendientes"),
+            "cursor_id": 0,
+            "resumen": ResumenEnriquecimiento(),
+        },
         construir_config(),
     )
     assert salida["resumen"].lotes == 2
@@ -74,9 +85,7 @@ def test_raiz_procesar():
 
 
 def test_raiz_reenriquecer_no_pasa_por_ingesta(capsys):
-    filtro = FiltroEnriquecimiento(
-        modo="rango", desde=date(2026, 10, 1), hasta=date(2026, 11, 15)
-    )
+    filtro = FiltroEnriquecimiento(modo="rango", desde=date(2026, 10, 1), hasta=date(2026, 11, 15))
     construir_grafo_raiz().invoke(
         {"modo": "reenriquecer", "filtro_reenriquecimiento": filtro}, construir_config()
     )

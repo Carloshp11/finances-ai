@@ -65,8 +65,7 @@ def publicar(state: EstadoAnalisis) -> dict:
     # Future: UPSERT into `resumenes` with estado='vigente' and write the .md file.
     carpeta = cargar_settings().rutas.ruta_resumenes
     rutas = [
-        str(carpeta / r.tipo / f"{r.periodo}_{r.ambito}.md")
-        for r in state.get("resumenes", [])
+        str(carpeta / r.tipo / f"{r.periodo}_{r.ambito}.md") for r in state.get("resumenes", [])
     ]
     return {"rutas_publicadas": rutas}
 

@@ -37,10 +37,18 @@ def leer_fichero(state: EstadoExtraccion) -> dict:
     return {
         "cabecera": ["Fecha", "Concepto", "Importe", "Saldo"],
         "filas_crudas": [
-            {"Fecha": "03/11/2026", "Concepto": "COMPRA TARJ MERCADONA",
-             "Importe": "-45,30", "Saldo": "1.200,00"},
-            {"Fecha": "05/11/2026", "Concepto": "NOMINA",
-             "Importe": "2.000,00", "Saldo": "3.200,00"},
+            {
+                "Fecha": "03/11/2026",
+                "Concepto": "COMPRA TARJ MERCADONA",
+                "Importe": "-45,30",
+                "Saldo": "1.200,00",
+            },
+            {
+                "Fecha": "05/11/2026",
+                "Concepto": "NOMINA",
+                "Importe": "2.000,00",
+                "Saldo": "3.200,00",
+            },
         ],
     }
 
